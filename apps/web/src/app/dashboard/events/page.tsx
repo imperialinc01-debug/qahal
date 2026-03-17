@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { formatDate, getInitials, getAvatarColor } from '@/lib/utils';
+import { exportAttendanceCSV } from '@/lib/export';
 
 const TYPE_LABELS: Record<string, string> = { SUNDAY_SERVICE: 'Sunday Service', MIDWEEK_SERVICE: 'Midweek Service', PRAYER_MEETING: 'Prayer Meeting', CELL_MEETING: 'Cell Meeting', SPECIAL_EVENT: 'Special Event', CONFERENCE: 'Conference', OTHER: 'Other' };
 const TYPE_COLORS: Record<string, string> = { SUNDAY_SERVICE: 'bg-blue-100 text-blue-700', MIDWEEK_SERVICE: 'bg-purple-100 text-purple-700', PRAYER_MEETING: 'bg-teal-100 text-teal-700', CELL_MEETING: 'bg-emerald-100 text-emerald-700', SPECIAL_EVENT: 'bg-amber-100 text-amber-700', CONFERENCE: 'bg-pink-100 text-pink-700', OTHER: 'bg-gray-100 text-gray-600' };
@@ -113,6 +114,7 @@ export default function EventsPage() {
                   <div className="text-right">
                     <p className="text-2xl font-bold text-gray-900">{attendees.length}</p>
                     <p className="text-xs text-gray-500">attended</p>
+                  <button onClick={() => exportAttendanceCSV(selectedEvent.name, attendees)} className="mt-1 rounded-md border border-gray-300 px-2 py-1 text-[10px] font-medium text-gray-600 hover:bg-gray-50">Export</button>
                   </div>
                 </div>
               </div>

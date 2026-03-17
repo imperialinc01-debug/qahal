@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { exportGivingCSV } from '@/lib/export';
 
 const CATEGORY_LABELS: Record<string, string> = {
   TITHE: 'Tithe', OFFERING: 'Offering', SPECIAL_SEED: 'Special Seed',

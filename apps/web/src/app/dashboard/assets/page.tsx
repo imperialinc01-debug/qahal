@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { exportAssetsCSV } from '@/lib/export';
 
 const CAT_LABELS: Record<string, string> = { EQUIPMENT: 'Equipment', FURNITURE: 'Furniture', VEHICLE: 'Vehicle', PROPERTY: 'Property', INSTRUMENT: 'Instrument', ELECTRONICS: 'Electronics', OTHER: 'Other' };
 const CAT_COLORS: Record<string, string> = { EQUIPMENT: 'bg-blue-100 text-blue-700', FURNITURE: 'bg-amber-100 text-amber-700', VEHICLE: 'bg-purple-100 text-purple-700', PROPERTY: 'bg-emerald-100 text-emerald-700', INSTRUMENT: 'bg-pink-100 text-pink-700', ELECTRONICS: 'bg-teal-100 text-teal-700', OTHER: 'bg-gray-100 text-gray-600' };
@@ -42,6 +43,7 @@ export default function AssetsPage() {
       <div className="mb-5 flex items-center justify-between">
         <div><h1 className="text-xl font-semibold text-gray-900">Asset inventory</h1><p className="text-sm text-gray-500">Track equipment, furniture, vehicles, and property</p></div>
         <button onClick={() => setShowAdd(true)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">+ Add asset</button>
+        <button onClick={() => exportAssetsCSV(assets)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</button>
       </div>
 
       {summary && (

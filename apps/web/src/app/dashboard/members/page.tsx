@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { formatDate, getInitials, getAvatarColor, getStatusColor } from '@/lib/utils';
+import { exportMembersCSV } from '@/lib/export';
 
 export default function MembersPage() {
   var [members, setMembers] = useState<any[]>([]);
@@ -56,6 +57,10 @@ export default function MembersPage() {
         <button onClick={function() { setShowAddModal(true); }}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
           + Add member
+        </button>
+        <button onClick={function() { exportMembersCSV(members); }}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Export CSV
         </button>
       </div>
 

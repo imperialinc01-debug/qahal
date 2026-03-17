@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { exportWeeklyGivingCSV, exportMonthlyIncomeCSV, exportAttendanceRatesCSV, exportPledgesCSV, exportPDF } from '@/lib/export';
 
 export default function ReportsPage() {
   const [tab, setTab] = useState<'overview' | 'attendance' | 'giving' | 'pledges'>('overview');
@@ -55,7 +56,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="mb-5"><h1 className="text-xl font-semibold text-gray-900">Reports</h1><p className="text-sm text-gray-500">Comprehensive church analytics</p></div>
+      <div className="mb-5 flex items-center justify-between"><div><h1 className="text-xl font-semibold text-gray-900">Reports</h1><p className="text-sm text-gray-500">Comprehensive church analytics</p></div><button onClick={() => exportPDF('Qahal Church Report')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Print / Save PDF</button></div>
 
       <div className="mb-5 flex gap-1 rounded-lg bg-gray-100 p-1">
         {tabs.map(t => (
@@ -196,7 +197,7 @@ function AttendanceReport({ memberRates, conversions, seasonal, serviceComp }: a
       {/* Individual attendance rates */}
       {memberRates && memberRates.members.length > 0 && (
         <div className="rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Individual attendance rates</h2>
+          <div className="flex items-center justify-between mb-1"><h2 className="text-sm font-semibold text-gray-900">Individual attendance rates</h2><button onClick={() => exportAttendanceRatesCSV(memberRates.members, memberRates.period)} className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Export CSV</button></div>
           <p className="text-xs text-gray-500 mb-4">{memberRates.period} — {memberRates.totalEvents} services tracked</p>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {memberRates.members.map((m: any) => (
@@ -224,7 +225,7 @@ function GivingReport({ weekly, monthly }: { weekly: any[]; monthly: any }) {
       {/* Weekly summary */}
       {weekly.length > 0 && (
         <div className="rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Weekly giving summary (for board meetings)</h2>
+          <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-900">Weekly giving summary (for board meetings)</h2><button onClick={() => exportWeeklyGivingCSV(weekly)} className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Export CSV</button></div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
@@ -272,7 +273,7 @@ function GivingReport({ weekly, monthly }: { weekly: any[]; monthly: any }) {
       {/* Monthly income */}
       {monthly && monthly.months.length > 0 && (
         <div className="rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Monthly income report — {monthly.year}</h2>
+          <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-gray-900">Monthly income report — {monthly.year}</h2><button onClick={() => exportMonthlyIncomeCSV(monthly)} className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Export CSV</button></div>
           <p className="text-xs text-gray-500 mb-4">Year total: {formatCurrency(monthly.yearTotal)}</p>
 
           {/* Bar chart */}
