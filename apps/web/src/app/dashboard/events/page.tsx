@@ -17,6 +17,11 @@ export default function EventsPage() {
 
   useEffect(() => { api.getEvents({ limit: 100 }).then(r => setEvents(r.data || [])).catch(() => {}).finally(() => setLoading(false)); }, []);
 
+  const deleteEvent = async (id: string, name: string) => {
+    if (!confirm('Delete event "' + name + '"?')) return;
+    try { await api.deleteEvent(id); setEvents(prev => prev.filter(e => e.id !== id)); if (selectedEvent?.id === id) setSelectedEvent(null); } catch {}
+  };
+
   const loadEventDetail = async (event: any) => {
     setSelectedEvent(event);
     setLoadingDetail(true);
@@ -63,11 +68,12 @@ export default function EventsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Event</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Attended</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500 w-16"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {displayEvents.length === 0 ? (
-                  <tr><td colSpan={2} className="px-4 py-8 text-center text-gray-400 text-sm">{tab === 'services' ? 'No church services yet' : 'No other events yet'}</td></tr>
+                  <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400 text-sm">{tab === 'services' ? 'No church services yet' : 'No other events yet'}</td></tr>
                 ) : displayEvents.map((e: any) => (
                   <tr key={e.id} onClick={() => loadEventDetail(e)}
                     className={`cursor-pointer hover:bg-gray-50 transition-colors ${selectedEvent?.id === e.id ? 'bg-brand-50' : ''}`}>
@@ -79,6 +85,7 @@ export default function EventsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{e._count?.attendanceRecords || 0}</td>
+                    <td className="px-2 py-3 text-right"><button onClick={(ev) => { ev.stopPropagation(); deleteEvent(e.id, e.name); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button></td>
                   </tr>
                 ))}
               </tbody>

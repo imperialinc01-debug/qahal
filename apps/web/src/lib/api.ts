@@ -178,6 +178,11 @@ class ApiClient {
     return res.data;
   }
 
+  async deleteEvent(id: string) {
+    const res = await this.client.delete(`/events/${id}`);
+    return res.data;
+  }
+
   // ─── Groups ───────────────────────────────────────────────
   async getGroups(params?: Record<string, any>) {
     const res = await this.client.get('/groups', { params });

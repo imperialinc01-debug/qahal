@@ -54,6 +54,11 @@ export default function GivingPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const deleteGiving = async (id: string) => {
+    if (!confirm('Delete this giving record?')) return;
+    try { await api.deleteGiving(id); loadData(); } catch {}
+  };
+
   const gs = summary;
   const tithes = gs?.byCategory?.TITHE || 0;
   const offerings = gs?.byCategory?.OFFERING || 0;
@@ -94,13 +99,14 @@ export default function GivingPage() {
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Category</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 hidden md:table-cell">Method</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 hidden md:table-cell">Date</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : records.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">No giving records yet</td></tr>
+              <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No giving records yet</td></tr>
             ) : (
               records.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
@@ -115,6 +121,7 @@ export default function GivingPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{r.paymentMethod.replace('_', ' ')}</td>
                   <td className="px-4 py-3 text-gray-400 hidden md:table-cell">{formatDate(r.date)}</td>
+                  <td className="px-4 py-3 text-right"><button onClick={() => deleteGiving(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button></td>
                 </tr>
               ))
             )}

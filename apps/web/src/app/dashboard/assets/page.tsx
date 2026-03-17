@@ -32,6 +32,11 @@ export default function AssetsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const deleteAsset = async (id: string, name: string) => {
+    if (!confirm('Delete asset "' + name + '"?')) return;
+    try { await api.deleteAsset(id); load(); } catch {}
+  };
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -68,13 +73,14 @@ export default function AssetsPage() {
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 hidden md:table-cell">Value</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 hidden md:table-cell">Source</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 hidden lg:table-cell">Location</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : assets.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No assets recorded yet</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">No assets recorded yet</td></tr>
             ) : assets.map((a: any) => (
               <tr key={a.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
@@ -87,6 +93,7 @@ export default function AssetsPage() {
                 <td className="px-4 py-3 text-gray-900 font-medium hidden md:table-cell">{a.value ? formatCurrency(Number(a.value)) : '—'}</td>
                 <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{a.source || (a.donorMember ? `${a.donorMember.firstName} ${a.donorMember.lastName}` : '—')}</td>
                 <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{a.location || '—'}</td>
+                <td className="px-4 py-3 text-right"><button onClick={() => deleteAsset(a.id, a.name)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button></td>
               </tr>
             ))}
           </tbody>
