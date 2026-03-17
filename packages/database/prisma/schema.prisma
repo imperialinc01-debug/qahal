@@ -1,0 +1,671 @@
+// ============================================================================
+// QAHAL — Church Management Platform
+// Prisma Schema v1.0
+// Database: PostgreSQL with Row-Level Security (RLS)
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, uuid_ossp(map: "uuid-ossp")]
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TenantPlan {
+  FREE
+  GROWTH
+  PRO
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  CANCELLED
+}
+
+enum UserRole {
+  SUPER_ADMIN    // Platform-level admin
+  PASTOR         // Church lead — full tenant access
+  ADMIN          // Church admin — manages operations
+  LEADER         // Group/ministry leader — scoped access
+  MEMBER         // Self-service member portal
+}
+
+enum MemberStatus {
+  VISITOR
+  NEW_CONVERT
+  MEMBER
+  WORKER
+  LEADER
+  INACTIVE
+  ARCHIVED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum GroupType {
+  CELL
+  MINISTRY
+  DEPARTMENT
+  ZONE
+  DISTRICT
+  TEAM
+}
+
+enum EventType {
+  SUNDAY_SERVICE
+  MIDWEEK_SERVICE
+  PRAYER_MEETING
+  CELL_MEETING
+  SPECIAL_EVENT
+  CONFERENCE
+  OTHER
+}
+
+enum RecurrenceRule {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum CheckInMethod {
+  MANUAL
+  QR_CODE
+  SELF_CHECK_IN
+}
+
+enum GivingCategory {
+  TITHE
+  OFFERING
+  SPECIAL_SEED
+  PLEDGE_PAYMENT
+  BUILDING_FUND
+  MISSIONS
+  WELFARE
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  POS
+  MOBILE_MONEY
+  ONLINE_CARD
+  PAYSTACK
+  STRIPE
+  OTHER
+}
+
+enum PledgeStatus {
+  ACTIVE
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum MessageChannel {
+  EMAIL
+  SMS
+  PUSH
+  WHATSAPP
+}
+
+enum MessageStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+enum AutomationType {
+  BIRTHDAY
+  ANNIVERSARY
+  VISITOR_FOLLOWUP
+  ABSENTEE_ALERT
+  PLEDGE_REMINDER
+  EVENT_REMINDER
+  CUSTOM
+}
+
+enum CurrencyCode {
+  USD
+  NGN
+  ZAR
+  GBP
+  EUR
+  CAD
+  GHS
+  KES
+}
+
+// ============================================================================
+// PLATFORM-LEVEL (No tenant_id)
+// ============================================================================
+
+/// Platform tenant — each church is a tenant
+model Tenant {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String       @db.VarChar(255)
+  subdomain     String       @unique @db.VarChar(63)
+  customDomain  String?      @unique @db.VarChar(255)
+  logoUrl       String?      @db.Text
+  plan          TenantPlan   @default(FREE)
+  status        TenantStatus @default(TRIAL)
+  currency      CurrencyCode @default(GHS)
+  timezone      String       @default("UTC") @db.VarChar(50)
+  settings      Json         @default("{}")  // Tenant-level config (branding, features, etc.)
+  trialEndsAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  users              User[]
+  members            Member[]
+  families           Family[]
+  groups             Group[]
+  events             Event[]
+  attendanceRecords  Attendance[]
+  givingRecords      Giving[]
+  pledges            Pledge[]
+  messages           Message[]
+  messageTemplates   MessageTemplate[]
+  automationRules    AutomationRule[]
+  auditLogs          AuditLog[]
+  customFields       CustomFieldDefinition[]
+  assets             Asset[]
+
+  @@map("tenants")
+}
+
+// ============================================================================
+// AUTHENTICATION & USERS
+// ============================================================================
+
+/// Authenticated user account (admins, pastors, leaders, members with login)
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @db.Uuid
+  email         String    @db.VarChar(255)
+  passwordHash  String    @db.Text
+  role          UserRole  @default(MEMBER)
+  isActive      Boolean   @default(true)
+  firstName     String    @db.VarChar(100)
+  lastName      String    @db.VarChar(100)
+  avatarUrl     String?   @db.Text
+  phone         String?   @db.VarChar(30)
+  lastLoginAt   DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberId      String?   @unique @db.Uuid
+  member        Member?   @relation(fields: [memberId], references: [id])
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+/// Refresh tokens for JWT rotation
+model RefreshToken {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  token       String   @unique @db.Text
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ============================================================================
+// MEMBERS & FAMILIES
+// ============================================================================
+
+/// Church member or visitor record
+model Member {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String       @db.Uuid
+  firstName       String       @db.VarChar(100)
+  lastName        String       @db.VarChar(100)
+  email           String?      @db.VarChar(255)
+  phone           String?      @db.VarChar(30)
+  altPhone        String?      @db.VarChar(30)
+  dateOfBirth     DateTime?    @db.Date
+  gender          Gender?
+  maritalStatus   String?      @db.VarChar(30) // Single, Married, Widowed, etc.
+  address         String?      @db.Text
+  city            String?      @db.VarChar(100)
+  state           String?      @db.VarChar(100)
+  country         String?      @db.VarChar(100)
+  postalCode      String?      @db.VarChar(20)
+  photoUrl        String?      @db.Text
+  status          MemberStatus @default(VISITOR)
+
+  // Spiritual milestones
+  salvationDate   DateTime?    @db.Date
+  baptismDate     DateTime?    @db.Date
+  joinedDate      DateTime?    @db.Date
+  weddingAnniversary DateTime? @db.Date
+
+  // Family
+  familyId        String?      @db.Uuid
+
+  // Flexible storage
+  customFields    Json         @default("{}") // Tenant-defined custom fields
+  notes           String?      @db.Text
+
+  isArchived      Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  family          Family?      @relation(fields: [familyId], references: [id])
+  user            User?
+  attendanceRecords Attendance[]
+  givingRecords   Giving[]
+  pledges         Pledge[]
+  messages        Message[]
+  groupMembers    GroupMember[]
+  donatedAssets   Asset[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, familyId])
+  @@index([tenantId, dateOfBirth])
+  @@index([tenantId, lastName, firstName])
+  @@map("members")
+}
+
+/// Family / household grouping
+model Family {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @db.Uuid
+  name             String   @db.VarChar(255) // e.g., "The Johnson Family"
+  primaryContactId String?  @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members          Member[]
+
+  @@index([tenantId])
+  @@map("families")
+}
+
+// ============================================================================
+// CUSTOM FIELDS (per tenant)
+// ============================================================================
+
+/// Tenant-defined custom field definitions
+model CustomFieldDefinition {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @db.Uuid
+  entity     String   @db.VarChar(50)  // "member", "group", "event"
+  fieldName  String   @db.VarChar(100) // e.g., "water_baptism_date"
+  fieldLabel String   @db.VarChar(200) // e.g., "Water Baptism Date"
+  fieldType  String   @db.VarChar(30)  // text, number, date, boolean, select
+  options    Json?    // For select: ["Option A", "Option B"]
+  isRequired Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, entity, fieldName])
+  @@index([tenantId, entity])
+  @@map("custom_field_definitions")
+}
+
+// ============================================================================
+// GROUPS & MINISTRIES
+// ============================================================================
+
+/// Church group (cell, ministry, department, zone, etc.)
+model Group {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @db.Uuid
+  name          String    @db.VarChar(255)
+  description   String?   @db.Text
+  type          GroupType @default(CELL)
+  parentGroupId String?   @db.Uuid
+  leaderId      String?   @db.Uuid // References a Member who leads this group
+  meetingDay    String?   @db.VarChar(20)
+  meetingTime   String?   @db.VarChar(20)
+  location      String?   @db.Text
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentGroup   Group?       @relation("GroupHierarchy", fields: [parentGroupId], references: [id])
+  childGroups   Group[]      @relation("GroupHierarchy")
+  members       GroupMember[]
+  events        Event[]
+
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@index([parentGroupId])
+  @@map("groups")
+}
+
+/// Many-to-many: Members <-> Groups
+model GroupMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @db.Uuid
+  memberId  String   @db.Uuid
+  role      String   @default("member") @db.VarChar(30) // member, leader, assistant
+  joinedAt  DateTime @default(now())
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, memberId])
+  @@index([memberId])
+  @@map("group_members")
+}
+
+// ============================================================================
+// EVENTS & ATTENDANCE
+// ============================================================================
+
+/// Church event (service, meeting, conference, etc.)
+model Event {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @db.Uuid
+  name            String         @db.VarChar(255)
+  description     String?        @db.Text
+  type            EventType      @default(SUNDAY_SERVICE)
+  date            DateTime       @db.Timestamptz()
+  endDate         DateTime?      @db.Timestamptz()
+  recurrence      RecurrenceRule @default(NONE)
+  recurrenceEndDate DateTime?    @db.Date
+  location        String?        @db.Text
+  groupId         String?        @db.Uuid // If event belongs to a specific group
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group           Group?         @relation(fields: [groupId], references: [id])
+  attendanceRecords Attendance[]
+
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@index([tenantId, type])
+  @@map("events")
+}
+
+/// Attendance record — one per member per event
+model Attendance {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String        @db.Uuid
+  eventId       String        @db.Uuid
+  memberId      String        @db.Uuid
+  checkedInAt   DateTime      @default(now()) @db.Timestamptz()
+  checkInMethod CheckInMethod @default(MANUAL)
+  isFirstTime   Boolean       @default(false) // First-time visitor flag
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now())
+
+  // Relations
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId])
+  @@index([tenantId])
+  @@index([tenantId, eventId])
+  @@index([tenantId, memberId])
+  @@map("attendance")
+}
+
+// ============================================================================
+// GIVING & PLEDGES
+// ============================================================================
+
+/// Individual giving transaction
+model Giving {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @db.Uuid
+  memberId        String?        @db.Uuid // Nullable for anonymous giving
+  amount          Decimal        @db.Decimal(12, 2)
+  currency        CurrencyCode   @default(GHS)
+  category        GivingCategory @default(OFFERING)
+  paymentMethod   PaymentMethod  @default(CASH)
+  transactionRef  String?        @db.VarChar(255) // External payment reference
+  pledgeId        String?        @db.Uuid // If this is a pledge payment
+  date            DateTime       @db.Date
+  notes           String?        @db.Text
+  receiptSent     Boolean        @default(false)
+  receiptUrl      String?        @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member          Member?        @relation(fields: [memberId], references: [id])
+  pledge          Pledge?        @relation(fields: [pledgeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@index([tenantId, memberId])
+  @@index([tenantId, category])
+  @@map("giving")
+}
+
+/// Pledge commitment
+model Pledge {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String       @db.Uuid
+  memberId      String       @db.Uuid
+  name          String       @db.VarChar(255) // e.g., "2026 Building Fund Pledge"
+  targetAmount  Decimal      @db.Decimal(12, 2)
+  paidAmount    Decimal      @default(0) @db.Decimal(12, 2)
+  currency      CurrencyCode @default(GHS)
+  startDate     DateTime     @db.Date
+  endDate       DateTime?    @db.Date
+  status        PledgeStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member        Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  payments      Giving[]
+
+  @@index([tenantId])
+  @@index([tenantId, memberId])
+  @@index([tenantId, status])
+  @@map("pledges")
+}
+
+// ============================================================================
+// MESSAGING & AUTOMATION
+// ============================================================================
+
+/// Message template (reusable)
+model MessageTemplate {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String         @db.Uuid
+  name        String         @db.VarChar(255) // e.g., "Birthday Greeting"
+  channel     MessageChannel
+  subject     String?        @db.VarChar(500) // For email
+  body        String         @db.Text // Supports merge fields: {first_name}, {church_name}
+  mergeFields Json           @default("[]") // List of available merge fields
+  isSystem    Boolean        @default(false) // System templates can't be deleted
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  automationRules AutomationRule[]
+
+  @@index([tenantId])
+  @@index([tenantId, channel])
+  @@map("message_templates")
+}
+
+/// Individual message sent to a member
+model Message {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String        @db.Uuid
+  channel      MessageChannel
+  recipientId  String        @db.Uuid  // Member who received the message
+  templateId   String?       @db.Uuid
+  subject      String?       @db.VarChar(500)
+  body         String        @db.Text
+  status       MessageStatus @default(QUEUED)
+  scheduledFor DateTime?     @db.Timestamptz()
+  sentAt       DateTime?     @db.Timestamptz()
+  deliveredAt  DateTime?     @db.Timestamptz()
+  failReason   String?       @db.Text
+  externalId   String?       @db.VarChar(255) // Twilio SID, Resend ID, etc.
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient    Member        @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  template     MessageTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, recipientId])
+  @@index([tenantId, channel, status])
+  @@index([scheduledFor])
+  @@map("messages")
+}
+
+/// Automation rule for scheduled/triggered messages
+model AutomationRule {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String         @db.Uuid
+  name        String         @db.VarChar(255)
+  type        AutomationType
+  templateId  String         @db.Uuid
+  channel     MessageChannel
+  isActive    Boolean        @default(true)
+  config      Json           @default("{}") // Type-specific config (e.g., days before/after, trigger conditions)
+  // For VISITOR_FOLLOWUP: { "delays": [1, 3, 7] } — send on day 1, 3, 7
+  // For ABSENTEE_ALERT: { "missedCount": 2 } — trigger after 2 missed services
+  // For EVENT_REMINDER: { "hoursBefore": 1 }
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template    MessageTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, type, isActive])
+  @@map("automation_rules")
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+/// Immutable audit trail for all data mutations
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @db.Uuid
+  userId     String?  @db.Uuid
+  action     String   @db.VarChar(50) // CREATE, UPDATE, DELETE, LOGIN, EXPORT, etc.
+  entity     String   @db.VarChar(50) // "member", "giving", "attendance", etc.
+  entityId   String?  @db.Uuid
+  changes    Json?    // { before: {...}, after: {...} }
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  // Relations
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// ASSET INVENTORY
+// ============================================================================
+
+enum AssetCategory {
+  EQUIPMENT
+  FURNITURE
+  VEHICLE
+  PROPERTY
+  INSTRUMENT
+  ELECTRONICS
+  OTHER
+}
+
+enum AssetCondition {
+  NEW
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+  DISPOSED
+}
+
+/// Church asset / gift-in-kind inventory
+model Asset {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String         @db.Uuid
+  name          String         @db.VarChar(255)
+  description   String?        @db.Text
+  category      AssetCategory  @default(EQUIPMENT)
+  condition     AssetCondition @default(GOOD)
+  value         Decimal?       @db.Decimal(12, 2)
+  source        String?        @db.VarChar(255) // "Donated by...", "Purchased", etc.
+  donorMemberId String?        @db.Uuid
+  acquiredDate  DateTime?      @db.Date
+  location      String?        @db.VarChar(255)
+  serialNumber  String?        @db.VarChar(255)
+  notes         String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  donorMember   Member?        @relation(fields: [donorMemberId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, category])
+  @@map("assets")
+}

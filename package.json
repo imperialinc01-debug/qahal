@@ -1,0 +1,32 @@
+{
+  "name": "qahal",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:migrate": "cd packages/database && npx prisma migrate dev",
+    "db:generate": "cd packages/database && npx prisma generate",
+    "db:seed": "cd packages/database && npx tsx seed.ts",
+    "db:studio": "cd packages/database && npx prisma studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\""
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/node": "^20",
+    "@types/uuid": "^10.0.0",
+    "prettier": "^3",
+    "prettier-plugin-tailwindcss": "^0.6",
+    "turbo": "^2",
+    "typescript": "^5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.0.0"
+}
