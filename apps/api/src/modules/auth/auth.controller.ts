@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -18,6 +19,8 @@ import {
   RefreshTokenDto,
   InviteUserDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './auth.dto';
 
 @ApiTags('Auth')
@@ -88,6 +91,56 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current user profile' })
   async getProfile(@CurrentUser() user: any) {
     const data = await this.authService.getProfile(user.sub);
+    return { success: true, data };
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile (first name, last name)' })
+  async updateProfile(
+    @CurrentUser() user: any,
+    @Body() dto: { firstName?: string; lastName?: string },
+  ) {
+    const data = await this.authService.updateProfile(user.sub, dto);
+    return { success: true, data };
+  }
+
+  @Get('tenant')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current tenant (church) settings' })
+  async getTenant(@CurrentTenant() tenant: any) {
+    const data = await this.authService.getTenant(tenant.id);
+    return { success: true, data };
+  }
+
+  @Patch('tenant')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('PASTOR', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update tenant (church) settings' })
+  async updateTenant(
+    @CurrentTenant() tenant: any,
+    @Body() dto: { name?: string; currency?: string; timezone?: string },
+  ) {
+    const data = await this.authService.updateTenant(tenant.id, dto);
+    return { success: true, data };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset link' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @CurrentTenant() tenant: any) {
+    const data = await this.authService.forgotPassword(dto.email, tenant?.id);
+    return { success: true, data };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using token from email' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    const data = await this.authService.resetPassword(dto.token, dto.password);
     return { success: true, data };
   }
 }

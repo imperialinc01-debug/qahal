@@ -15,8 +15,13 @@ export default function EventsPage() {
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [tab, setTab] = useState<'services' | 'events'>('services');
+  const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => { api.getEvents({ limit: 100 }).then(r => setEvents(r.data || [])).catch(() => {}).finally(() => setLoading(false)); }, []);
+  const loadEvents = () => {
+    api.getEvents({ limit: 100 }).then(r => setEvents(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadEvents(); }, []);
 
   const deleteEvent = async (id: string, name: string) => {
     if (!confirm('Delete event "' + name + '"?')) return;
@@ -46,6 +51,7 @@ export default function EventsPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <div><h1 className="text-xl font-semibold text-gray-900">Events</h1><p className="text-sm text-gray-500">{services.length} services, {otherEvents.length} other events</p></div>
+        <button onClick={() => setShowCreate(true)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">+ Create event</button>
       </div>
 
       {/* Tabs */}
@@ -114,7 +120,7 @@ export default function EventsPage() {
                   <div className="text-right">
                     <p className="text-2xl font-bold text-gray-900">{attendees.length}</p>
                     <p className="text-xs text-gray-500">attended</p>
-                  <button onClick={() => exportAttendanceCSV(selectedEvent.name, attendees)} className="mt-1 rounded-md border border-gray-300 px-2 py-1 text-[10px] font-medium text-gray-600 hover:bg-gray-50">Export</button>
+                    <button onClick={() => exportAttendanceCSV(selectedEvent.name, attendees)} className="mt-1 rounded-md border border-gray-300 px-2 py-1 text-[10px] font-medium text-gray-600 hover:bg-gray-50">Export</button>
                   </div>
                 </div>
               </div>
@@ -147,6 +153,122 @@ export default function EventsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {showCreate && <CreateEventModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); loadEvents(); }} />}
+    </div>
+  );
+}
+
+// ─── Create Event Modal ─────────────────────────────────────
+function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    name: '', type: 'SUNDAY_SERVICE',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '09:00', endTime: '12:00',
+    location: '', description: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const up = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Event name is required'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const data: any = {
+        name: form.name,
+        type: form.type,
+        date: form.date,
+        startTime: form.startTime || undefined,
+        endTime: form.endTime || undefined,
+        location: form.location || undefined,
+        description: form.description || undefined,
+      };
+      await api.createEvent(data);
+      onCreated();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create event';
+      setError(typeof msg === 'string' ? msg : msg[0]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Create event</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Event name *</label>
+            <input type="text" required value={form.name} onChange={e => up('name', e.target.value)}
+              placeholder="e.g. Sunday Service" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
+              <select value={form.type} onChange={e => up('type', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                <option value="SUNDAY_SERVICE">Sunday Service</option>
+                <option value="MIDWEEK_SERVICE">Midweek Service</option>
+                <option value="PRAYER_MEETING">Prayer Meeting</option>
+                <option value="CELL_MEETING">Cell Meeting</option>
+                <option value="SPECIAL_EVENT">Special Event</option>
+                <option value="CONFERENCE">Conference</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+              <input type="date" required value={form.date} onChange={e => up('date', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time</label>
+              <input type="time" value={form.startTime} onChange={e => up('startTime', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">End time</label>
+              <input type="time" value={form.endTime} onChange={e => up('endTime', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+            <input type="text" value={form.location} onChange={e => up('location', e.target.value)}
+              placeholder="e.g. Main Auditorium" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => up('description', e.target.value)} rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={saving}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+              {saving ? 'Creating...' : 'Create event'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

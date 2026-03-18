@@ -72,10 +72,16 @@ export default function GivingPage() {
           <h1 className="text-xl font-semibold text-gray-900">Giving</h1>
           <p className="text-sm text-gray-500">Track tithes, offerings, and donations in GHS</p>
         </div>
-        <button onClick={() => setShowAddModal(true)}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
-          + Record giving
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => exportGivingCSV(records)}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            Export CSV
+          </button>
+          <button onClick={() => setShowAddModal(true)}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
+            + Record giving
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}

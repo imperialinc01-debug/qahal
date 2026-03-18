@@ -16,6 +16,7 @@ interface Tenant {
   subdomain: string;
   plan?: string;
   currency?: string;
+  timezone?: string;
   logoUrl?: string;
 }
 
@@ -28,6 +29,8 @@ interface AuthState {
   register: (data: any) => Promise<void>;
   logout: () => void;
   loadProfile: () => Promise<void>;
+  setUser: (user: User | null) => void;
+  setTenant: (tenant: Tenant | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -85,4 +88,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: null, tenant: null, isAuthenticated: false });
     }
   },
+
+  setUser: (user) => set({ user }),
+  setTenant: (tenant) => set({ tenant }),
 }));

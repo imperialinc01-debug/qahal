@@ -51,6 +51,7 @@ export default function MessagesPage() {
 function SendMessageModal({ members, onClose, onSent }: { members: any[]; onClose: () => void; onSent: (m: any) => void }) {
   const [form, setForm] = useState({ recipientIds: [] as string[], channel: 'SMS', body: '', subject: '' });
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
   const [selectAll, setSelectAll] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -65,11 +66,61 @@ function SendMessageModal({ members, onClose, onSent }: { members: any[]; onClos
     else { setForm(p => ({ ...p, recipientIds: filtered.map(m => m.id) })); setSelectAll(true); }
   };
 
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.recipientIds.length) { setError('Select at least one recipient'); return; }
+    if (!form.body.trim()) { setError('Message body is required'); return; }
+
+    setSending(true);
+    setError('');
+
+    try {
+      // Send one message per recipient via the backend API
+      const results = [];
+      for (const recipientId of form.recipientIds) {
+        const payload: any = {
+          recipientId,
+          channel: form.channel,
+          body: form.body,
+        };
+        if (form.channel === 'EMAIL' && form.subject) {
+          payload.subject = form.subject;
+        }
+        try {
+          const res = await api.sendMessage(payload);
+          results.push(res.data);
+        } catch (err: any) {
+          // Continue sending to remaining recipients even if one fails
+          console.error(`Failed to send to ${recipientId}:`, err);
+        }
+      }
+
+      if (results.length === 0) {
+        setError('Failed to send any messages. Make sure Twilio or Resend is connected in Settings → Integrations.');
+        setSending(false);
+        return;
+      }
+
+      onSent({
+        channel: form.channel,
+        recipientCount: results.length,
+        body: form.body,
+        sentAt: new Date(),
+      });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to send messages. Check your integration settings.';
+      setError(typeof msg === 'string' ? msg : msg[0]);
+      setSending(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Send message</h2>
-        <form onSubmit={async e => { e.preventDefault(); if (!form.recipientIds.length) { alert('Select at least one recipient'); return; } setSending(true); onSent({ ...form, sentAt: new Date() }); }} className="space-y-3">
+        <form onSubmit={handleSend} className="space-y-3">
+          {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Channel</label>
             <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
               <option value="SMS">SMS</option><option value="EMAIL">Email</option><option value="WHATSAPP">WhatsApp</option>

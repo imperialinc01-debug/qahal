@@ -305,6 +305,7 @@ export class AuthService {
             subdomain: true,
             plan: true,
             currency: true,
+            timezone: true,
             logoUrl: true,
           },
         },
@@ -312,6 +313,154 @@ export class AuthService {
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  // ─── Update User Profile ──────────────────────────────────
+  async updateProfile(userId: string, dto: { firstName?: string; lastName?: string }) {
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const updated = await this.db.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName !== undefined && { firstName: dto.firstName }),
+        ...(dto.lastName !== undefined && { lastName: dto.lastName }),
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+      },
+    });
+
+    return updated;
+  }
+
+  // ─── Get Tenant Settings ──────────────────────────────────
+  async getTenant(tenantId: string) {
+    const tenant = await this.db.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        currency: true,
+        timezone: true,
+        logoUrl: true,
+        plan: true,
+        status: true,
+      },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    return tenant;
+  }
+
+  // ─── Update Tenant Settings ───────────────────────────────
+  async updateTenant(tenantId: string, dto: { name?: string; currency?: string; timezone?: string }) {
+    const tenant = await this.db.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const updated = await this.db.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.currency !== undefined && { currency: dto.currency as any }),
+        ...(dto.timezone !== undefined && { timezone: dto.timezone }),
+      },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        currency: true,
+        timezone: true,
+        logoUrl: true,
+      },
+    });
+
+    return updated;
+  }
+
+  // ─── Forgot Password ───────────────────────────────────────
+  async forgotPassword(email: string, tenantId?: string) {
+    // Find user - if tenantId provided, scope to tenant; otherwise find any match
+    const where: any = { email: email.toLowerCase(), isActive: true };
+    if (tenantId) where.tenantId = tenantId;
+
+    const user = await this.db.user.findFirst({ where });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return { message: 'If an account exists with that email, a reset link has been sent.' };
+    }
+
+    // Generate a secure reset token
+    const crypto = await import('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Store hashed token on user
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        resetTokenHash,
+        resetTokenExpiresAt,
+      } as any,
+    });
+
+    // TODO: Send email with reset link
+    // In production, use Resend/SendGrid/etc. to send:
+    // https://yourapp.qahal.app/auth/reset-password?token={resetToken}
+    //
+    // For now, log to console so you can test locally:
+    const resetUrl = `http://localhost:3000/auth/reset-password?token=${resetToken}`;
+    console.log('─── PASSWORD RESET LINK ───');
+    console.log(`User: ${user.email}`);
+    console.log(`URL: ${resetUrl}`);
+    console.log('───────────────────────────');
+
+    return { message: 'If an account exists with that email, a reset link has been sent.' };
+  }
+
+  // ─── Reset Password (with token from email) ──────────────
+  async resetPassword(token: string, newPassword: string) {
+    const crypto = await import('crypto');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with matching non-expired token
+    const user = await this.db.user.findFirst({
+      where: {
+        resetTokenHash: tokenHash,
+        resetTokenExpiresAt: { gt: new Date() },
+        isActive: true,
+      } as any,
+    });
+
+    if (!user) {
+      throw new BadRequestException('Reset link is invalid or has expired. Please request a new one.');
+    }
+
+    // Hash new password and clear reset token
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetTokenHash: null,
+        resetTokenExpiresAt: null,
+      } as any,
+    });
+
+    // Revoke all refresh tokens (force re-login everywhere)
+    await this.db.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: 'Password has been reset successfully. You can now sign in.' };
   }
 
   // ─── Private Helpers ──────────────────────────────────────

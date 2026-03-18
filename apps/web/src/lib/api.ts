@@ -72,6 +72,36 @@ class ApiClient {
     return res.data;
   }
 
+  async updateProfile(data: { firstName?: string; lastName?: string }) {
+    const res = await this.client.patch('/auth/profile', data);
+    return res.data;
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    const res = await this.client.post('/auth/change-password', data);
+    return res.data;
+  }
+
+  async forgotPassword(email: string) {
+    const res = await this.client.post('/auth/forgot-password', { email });
+    return res.data;
+  }
+
+  async resetPassword(token: string, password: string) {
+    const res = await this.client.post('/auth/reset-password', { token, password });
+    return res.data;
+  }
+
+  async getTenant() {
+    const res = await this.client.get('/auth/tenant');
+    return res.data;
+  }
+
+  async updateTenant(data: { name?: string; currency?: string; timezone?: string }) {
+    const res = await this.client.patch('/auth/tenant', data);
+    return res.data;
+  }
+
   logout() {
     localStorage.removeItem('qahal_access_token');
     localStorage.removeItem('qahal_refresh_token');
@@ -141,6 +171,11 @@ class ApiClient {
     return res.data;
   }
 
+  async deleteAttendance(id: string) {
+    const res = await this.client.delete(`/attendance/${id}`);
+    return res.data;
+  }
+
   // ─── Giving ───────────────────────────────────────────────
   async recordGiving(data: any) {
     const res = await this.client.post('/giving', data);
@@ -196,6 +231,16 @@ class ApiClient {
 
   async createGroup(data: any) {
     const res = await this.client.post('/groups', data);
+    return res.data;
+  }
+
+  async addGroupMember(groupId: string, data: { memberId: string }) {
+    const res = await this.client.post(`/groups/${groupId}/members`, data);
+    return res.data;
+  }
+
+  async removeGroupMember(groupId: string, memberId: string) {
+    const res = await this.client.delete(`/groups/${groupId}/members/${memberId}`);
     return res.data;
   }
 
@@ -268,6 +313,17 @@ class ApiClient {
 
   async getPledgeReport() {
     const res = await this.client.get('/reports/pledges');
+    return res.data;
+  }
+
+  // ─── Messages ─────────────────────────────────────────────
+  async sendMessage(data: any) {
+    const res = await this.client.post('/messages', data);
+    return res.data;
+  }
+
+  async getMessages(params?: Record<string, any>) {
+    const res = await this.client.get('/messages', { params });
     return res.data;
   }
 
