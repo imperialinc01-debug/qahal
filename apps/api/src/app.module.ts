@@ -32,11 +32,10 @@ export class AppModule implements NestModule {
     consumer
       .apply(TenantMiddleware)
       .exclude(
-        // Registration doesn't need tenant context (it creates one)
         { path: 'api/v1/auth/register', method: RequestMethod.POST },
-        // Refresh token is validated via the token itself
         { path: 'api/v1/auth/refresh', method: RequestMethod.POST },
-        // Health check
+        { path: 'api/v1/auth/forgot-password', method: RequestMethod.POST },
+        { path: 'api/v1/auth/reset-password', method: RequestMethod.POST },
         { path: 'api/v1/health', method: RequestMethod.GET },
       )
       .forRoutes('*');

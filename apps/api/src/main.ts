@@ -11,8 +11,24 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.use(compression());
+
+  // CORS — allow frontend origins
+  const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,         // e.g. https://qahal.app
+    process.env.NEXT_PUBLIC_APP_URL,   // legacy fallback
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow any *.vercel.app preview deploys
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      // Allow configured origins
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(null, false);
+    },
     credentials: true,
   });
 
@@ -28,7 +44,7 @@ async function bootstrap() {
   // API prefix
   app.setGlobalPrefix('api/v1');
 
-  // Swagger
+  // Swagger (disable in production if you want)
   const config = new DocumentBuilder()
     .setTitle('Qahal API')
     .setDescription('Church Management Platform API')
@@ -39,9 +55,8 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT || 4000;
-  await app.listen(port);
-  console.log(`🚀 Qahal API running on http://localhost:${port}`);
-  console.log(`📚 Swagger docs at http://localhost:${port}/api/docs`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Qahal API running on port ${port}`);
 }
 
 bootstrap();
