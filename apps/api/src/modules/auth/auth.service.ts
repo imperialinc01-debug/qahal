@@ -105,11 +105,10 @@ export class AuthService {
   }
 
   // ─── Login ────────────────────────────────────────────────
-  async login(dto: LoginDto, tenantId: string) {
+  async login(dto: LoginDto) {
     const user = await this.db.user.findFirst({
       where: {
         email: dto.email.toLowerCase(),
-        tenantId,
         isActive: true,
       },
       include: {
@@ -142,7 +141,7 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const tokens = await this.generateTokens(user.id, tenantId, user.role);
+    const tokens = await this.generateTokens(user.id, user.tenantId, user.role);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
     return {

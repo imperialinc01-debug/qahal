@@ -38,8 +38,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
-  async login(@Body() dto: LoginDto, @CurrentTenant() tenant: any) {
-    const data = await this.authService.login(dto, tenant.id);
+  async login(@Body() dto: LoginDto) {
+    const data = await this.authService.login(dto);
     return { success: true, data };
   }
 
