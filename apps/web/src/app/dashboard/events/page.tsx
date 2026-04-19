@@ -193,9 +193,8 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
       const data: any = {
         name: form.name,
         type: form.type,
-        date: form.date,
-        startTime: form.startTime || undefined,
-        endTime: form.endTime || undefined,
+        date: new Date(`${form.date}T${form.startTime || '00:00'}:00`).toISOString(),
+        endDate: form.endTime ? new Date(`${form.date}T${form.endTime}:00`).toISOString() : undefined,
         location: form.location || undefined,
         description: form.description || undefined,
       };
@@ -294,8 +293,8 @@ function EditEventModal({ event, onClose, onSaved }: { event: any; onClose: () =
     name: event.name || '',
     type: event.type || 'SUNDAY_SERVICE',
     date: toDateStr(event.date),
-    startTime: toTimeStr(event.startTime),
-    endTime: toTimeStr(event.endTime),
+    startTime: toTimeStr(event.date),
+    endTime: toTimeStr(event.endDate),
     location: event.location || '',
     description: event.description || '',
   });
@@ -313,9 +312,8 @@ function EditEventModal({ event, onClose, onSaved }: { event: any; onClose: () =
       const data: any = {
         name: form.name,
         type: form.type,
-        date: form.date,
-        startTime: form.startTime || undefined,
-        endTime: form.endTime || undefined,
+        date: new Date(`${form.date}T${form.startTime || '00:00'}:00`).toISOString(),
+        endDate: form.endTime ? new Date(`${form.date}T${form.endTime}:00`).toISOString() : undefined,
         location: form.location || undefined,
         description: form.description || undefined,
       };
