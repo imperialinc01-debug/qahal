@@ -16,6 +16,7 @@ export default function EventsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [tab, setTab] = useState<'services' | 'events'>('services');
   const [showCreate, setShowCreate] = useState(false);
+  const [editEvent, setEditEvent] = useState<any>(null);
 
   const loadEvents = () => {
     api.getEvents({ limit: 100 }).then(r => setEvents(r.data || [])).catch(() => {}).finally(() => setLoading(false));
@@ -92,7 +93,12 @@ export default function EventsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{e._count?.attendanceRecords || 0}</td>
-                    <td className="px-2 py-3 text-right"><button onClick={(ev) => { ev.stopPropagation(); deleteEvent(e.id, e.name); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button></td>
+                    <td className="px-2 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={(ev) => { ev.stopPropagation(); setEditEvent(e); }} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Edit</button>
+                        <button onClick={(ev) => { ev.stopPropagation(); deleteEvent(e.id, e.name); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -156,6 +162,11 @@ export default function EventsPage() {
       </div>
 
       {showCreate && <CreateEventModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); loadEvents(); }} />}
+      {editEvent && <EditEventModal event={editEvent} onClose={() => setEditEvent(null)} onSaved={(updated) => {
+        setEditEvent(null);
+        setEvents(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
+        if (selectedEvent?.id === updated.id) setSelectedEvent({ ...selectedEvent, ...updated });
+      }} />}
     </div>
   );
 }
@@ -200,7 +211,7 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Create event</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
@@ -266,6 +277,126 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <button type="submit" disabled={saving}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
               {saving ? 'Creating...' : 'Create event'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Event Modal ───────────────────────────────────────
+function EditEventModal({ event, onClose, onSaved }: { event: any; onClose: () => void; onSaved: (e: any) => void }) {
+  const toDateStr = (d: string) => d ? new Date(d).toISOString().split('T')[0] : '';
+  const toTimeStr = (d: string | null | undefined) => d ? new Date(d).toISOString().slice(11, 16) : '';
+
+  const [form, setForm] = useState({
+    name: event.name || '',
+    type: event.type || 'SUNDAY_SERVICE',
+    date: toDateStr(event.date),
+    startTime: toTimeStr(event.startTime),
+    endTime: toTimeStr(event.endTime),
+    location: event.location || '',
+    description: event.description || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const up = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Event name is required'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const data: any = {
+        name: form.name,
+        type: form.type,
+        date: form.date,
+        startTime: form.startTime || undefined,
+        endTime: form.endTime || undefined,
+        location: form.location || undefined,
+        description: form.description || undefined,
+      };
+      const res = await api.updateEvent(event.id, data);
+      onSaved(res.data);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to update event';
+      setError(typeof msg === 'string' ? msg : msg[0]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Edit event</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Event name *</label>
+            <input type="text" required value={form.name} onChange={e => up('name', e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
+              <select value={form.type} onChange={e => up('type', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                <option value="SUNDAY_SERVICE">Sunday Service</option>
+                <option value="MIDWEEK_SERVICE">Midweek Service</option>
+                <option value="PRAYER_MEETING">Prayer Meeting</option>
+                <option value="CELL_MEETING">Cell Meeting</option>
+                <option value="SPECIAL_EVENT">Special Event</option>
+                <option value="CONFERENCE">Conference</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+              <input type="date" required value={form.date} onChange={e => up('date', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time</label>
+              <input type="time" value={form.startTime} onChange={e => up('startTime', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">End time</label>
+              <input type="time" value={form.endTime} onChange={e => up('endTime', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+            <input type="text" value={form.location} onChange={e => up('location', e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => up('description', e.target.value)} rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={saving}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save changes'}
             </button>
           </div>
         </form>

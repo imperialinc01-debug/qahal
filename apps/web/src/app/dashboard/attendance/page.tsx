@@ -282,7 +282,7 @@ function NewEventModal({ onClose, onCreated }: { onClose: () => void; onCreated:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={function(e) { e.stopPropagation(); }}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={function(e) { e.stopPropagation(); }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Create service or event</h2>
         <form onSubmit={async function(e) { e.preventDefault(); setSaving(true); try { var r = await api.createEvent({ ...form, date: new Date(form.date).toISOString() }); onCreated(r.data); } catch {} finally { setSaving(false); } }} className="space-y-3">
           <div>

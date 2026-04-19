@@ -134,7 +134,7 @@ function CreateGroupModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={function(e) { e.stopPropagation(); }}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={function(e) { e.stopPropagation(); }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Create group</h2>
         <form onSubmit={async function(e) { e.preventDefault(); setSaving(true); try { var r = await api.createGroup(form); onCreated(r.data); } catch {} finally { setSaving(false); } }} className="space-y-3">
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Group name *</label><input type="text" required value={form.name} onChange={function(e) { up('name', e.target.value); }} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" /></div>

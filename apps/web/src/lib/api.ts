@@ -213,6 +213,11 @@ class ApiClient {
     return res.data;
   }
 
+  async updateEvent(id: string, data: any) {
+    const res = await this.client.patch(`/events/${id}`, data);
+    return res.data;
+  }
+
   async deleteEvent(id: string) {
     const res = await this.client.delete(`/events/${id}`);
     return res.data;
