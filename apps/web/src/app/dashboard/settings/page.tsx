@@ -292,9 +292,18 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Invite user — PASTOR / ADMIN only */}
+        {['PASTOR', 'ADMIN'].includes(user?.role || '') && (
+          <div className="rounded-xl border border-gray-200 p-5 lg:col-span-2">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Invite a team member</h2>
+            <p className="text-xs text-gray-400 mb-4">Give someone login access to this church dashboard. They will receive a temporary password to sign in.</p>
+            <InviteUserSection />
+          </div>
+        )}
+
         {/* Integrations */}
         <div className="rounded-xl border border-gray-200 p-5 lg:col-span-2">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Integrations</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Integrations — coming soon</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { name: 'Paystack', desc: 'Accept online tithes and offerings via mobile money and card', status: 'Not connected' },
@@ -318,6 +327,91 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Invite User Section ─────────────────────────────────────
+function InviteUserSection() {
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', role: 'LEADER' });
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{ tempPassword: string; email: string } | null>(null);
+  const [error, setError] = useState('');
+
+  const up = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.email || !form.firstName || !form.lastName) { setError('All fields are required'); return; }
+    setSaving(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await api.inviteUser(form);
+      setResult({ tempPassword: res.data.temporaryPassword, email: res.data.email });
+      setForm({ firstName: '', lastName: '', email: '', role: 'LEADER' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to invite user';
+      setError(typeof msg === 'string' ? msg : msg[0]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ROLE_LABELS: Record<string, string> = {
+    ADMIN: 'Administrator — full access except super-admin',
+    LEADER: 'Leader — members, attendance, groups, events, giving',
+    MEMBER: 'Member — read-only access',
+  };
+
+  return (
+    <div className="space-y-4">
+      {result && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-800 mb-1">User invited successfully</p>
+          <p className="text-xs text-emerald-700 mb-2">Share these login credentials securely. The user should change their password after first login.</p>
+          <div className="rounded-md bg-white border border-emerald-200 p-3 space-y-1">
+            <p className="text-xs text-gray-500">Email: <span className="font-mono font-medium text-gray-900">{result.email}</span></p>
+            <p className="text-xs text-gray-500">Temporary password: <span className="font-mono font-medium text-gray-900">{result.tempPassword}</span></p>
+          </div>
+        </div>
+      )}
+
+      {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+
+      <form onSubmit={handleInvite} className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">First name *</label>
+          <input type="text" value={form.firstName} onChange={e => up('firstName', e.target.value)} required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Last name *</label>
+          <input type="text" value={form.lastName} onChange={e => up('lastName', e.target.value)} required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Email address *</label>
+          <input type="email" value={form.email} onChange={e => up('email', e.target.value)} required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Role *</label>
+          <select value={form.role} onChange={e => up('role', e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="ADMIN">Administrator</option>
+            <option value="LEADER">Leader</option>
+            <option value="MEMBER">Member</option>
+          </select>
+          <p className="text-[10px] text-gray-400 mt-1">{ROLE_LABELS[form.role]}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <button type="submit" disabled={saving}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+            {saving ? 'Inviting...' : 'Send invite'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -1,15 +1,26 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { exportAssetsCSV } from '@/lib/export';
+import { useAuthStore } from '@/lib/store';
 
 const CAT_LABELS: Record<string, string> = { EQUIPMENT: 'Equipment', FURNITURE: 'Furniture', VEHICLE: 'Vehicle', PROPERTY: 'Property', INSTRUMENT: 'Instrument', ELECTRONICS: 'Electronics', OTHER: 'Other' };
 const CAT_COLORS: Record<string, string> = { EQUIPMENT: 'bg-blue-100 text-blue-700', FURNITURE: 'bg-amber-100 text-amber-700', VEHICLE: 'bg-purple-100 text-purple-700', PROPERTY: 'bg-emerald-100 text-emerald-700', INSTRUMENT: 'bg-pink-100 text-pink-700', ELECTRONICS: 'bg-teal-100 text-teal-700', OTHER: 'bg-gray-100 text-gray-600' };
 const COND_COLORS: Record<string, string> = { NEW: 'bg-emerald-100 text-emerald-700', GOOD: 'bg-blue-100 text-blue-700', FAIR: 'bg-amber-100 text-amber-700', POOR: 'bg-red-100 text-red-700', DAMAGED: 'bg-red-200 text-red-800', DISPOSED: 'bg-gray-200 text-gray-600' };
 
 export default function AssetsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && !['PASTOR', 'ADMIN'].includes(user.role)) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
   const [assets, setAssets] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [meta, setMeta] = useState<any>(null);

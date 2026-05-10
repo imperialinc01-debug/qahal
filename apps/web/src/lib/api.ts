@@ -102,6 +102,11 @@ class ApiClient {
     return res.data;
   }
 
+  async inviteUser(data: { email: string; role: string; firstName: string; lastName: string; phone?: string }) {
+    const res = await this.client.post('/auth/invite', data);
+    return res.data;
+  }
+
   logout() {
     localStorage.removeItem('qahal_access_token');
     localStorage.removeItem('qahal_refresh_token');

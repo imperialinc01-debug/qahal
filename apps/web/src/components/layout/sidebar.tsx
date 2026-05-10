@@ -6,15 +6,15 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
 const navItems = [
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Members', href: '/dashboard/members' },
-  { label: 'Attendance', href: '/dashboard/attendance' },
-  { label: 'Giving', href: '/dashboard/giving' },
-  { label: 'Groups', href: '/dashboard/groups' },
-  { label: 'Messages', href: '/dashboard/messages' },
-  { label: 'Events', href: '/dashboard/events' },
-  { label: 'Reports', href: '/dashboard/reports' },
-  { label: 'Assets', href: '/dashboard/assets' },
+  { label: 'Dashboard', href: '/dashboard', roles: null },
+  { label: 'Members', href: '/dashboard/members', roles: null },
+  { label: 'Attendance', href: '/dashboard/attendance', roles: null },
+  { label: 'Giving', href: '/dashboard/giving', roles: null },
+  { label: 'Groups', href: '/dashboard/groups', roles: null },
+  { label: 'Messages', href: '/dashboard/messages', roles: null },
+  { label: 'Events', href: '/dashboard/events', roles: null },
+  { label: 'Reports', href: '/dashboard/reports', roles: ['PASTOR', 'ADMIN'] },
+  { label: 'Assets', href: '/dashboard/assets', roles: ['PASTOR', 'ADMIN'] },
 ];
 
 const bottomItems = [
@@ -41,26 +41,28 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <ul className="space-y-0.5">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/dashboard' && pathname.startsWith(item.href));
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors',
-                    isActive
-                      ? 'bg-brand-50 text-brand-700 font-medium'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-                  )}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
+          {navItems
+            .filter(item => !item.roles || item.roles.includes(user?.role || ''))
+            .map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors',
+                      isActive
+                        ? 'bg-brand-50 text-brand-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
         </ul>
       </nav>
 

@@ -1,11 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { exportWeeklyGivingCSV, exportMonthlyIncomeCSV, exportAttendanceRatesCSV, exportPledgesCSV, exportPDF } from '@/lib/export';
+import { useAuthStore } from '@/lib/store';
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && !['PASTOR', 'ADMIN'].includes(user.role)) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
   const [tab, setTab] = useState<'overview' | 'attendance' | 'giving' | 'pledges'>('overview');
   const [overview, setOverview] = useState<any>(null);
   const [memberRates, setMemberRates] = useState<any>(null);
