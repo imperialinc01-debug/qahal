@@ -132,7 +132,7 @@ export default function AttendancePage() {
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Stats */}
-      <div className="mb-5 grid grid-cols-4 gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg bg-gray-50 p-4"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">Last Sunday</p><p className="mt-1 text-2xl font-semibold text-gray-900">{stats?.lastSunday || 0}</p></div>
         <div className="rounded-lg bg-gray-50 p-4"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">Present</p><p className="mt-1 text-2xl font-semibold text-emerald-600">{checkedInMap.size}</p></div>
         <div className="rounded-lg bg-gray-50 p-4"><p className="text-xs font-medium uppercase tracking-wide text-gray-500">Absent</p><p className="mt-1 text-2xl font-semibold text-red-500">{selectedEvent ? absentMembers.length : 0}</p></div>
